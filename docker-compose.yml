@@ -1,0 +1,118 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: cf_postgres
+    environment:
+      POSTGRES_DB: community_finance
+      POSTGRES_USER: cfuser
+      POSTGRES_PASSWORD: cfpass123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - cf_network
+
+  # Redis Cache & Session Store
+  redis:
+    image: redis:7-alpine
+    container_name: cf_redis
+    command: redis-server --requirepass redispass123 --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - cf_network
+
+  # RabbitMQ Message Broker
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: cf_rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: cfrabbit
+      RABBITMQ_DEFAULT_PASS: rabbitpass123
+      RABBITMQ_DEFAULT_VHOST: community_finance
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      - ./docker/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+    networks:
+      - cf_network
+
+  # Backend API (Node.js + Koa)
+  backend:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    container_name: cf_backend
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      DATABASE_URL: postgresql://cfuser:cfpass123@postgres:5432/community_finance
+      REDIS_URL: redis://:redispass123@redis:6379
+      RABBITMQ_URL: amqp://cfrabbit:rabbitpass123@rabbitmq:5672/community_finance
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+      JWT_REFRESH_SECRET: your-refresh-secret-change-in-production
+      ENCRYPTION_KEY: your-32-char-encryption-key-here!!
+    ports:
+      - "3001:3001"
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+    volumes:
+      - ./apps/backend:/app
+      - /app/node_modules
+    networks:
+      - cf_network
+
+  # Worker Service (Background Jobs)
+  worker:
+    build:
+      context: ./apps/worker
+      dockerfile: Dockerfile
+    container_name: cf_worker
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://cfuser:cfpass123@postgres:5432/community_finance
+      REDIS_URL: redis://:redispass123@redis:6379
+      RABBITMQ_URL: amqp://cfrabbit:rabbitpass123@rabbitmq:5672/community_finance
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+    volumes:
+      - ./apps/worker:/app
+      - /app/node_modules
+    networks:
+      - cf_network
+
+  # Frontend (React + Vite)
+  frontend:
+    build:
+      context: ./apps/frontend
+      dockerfile: Dockerfile
+    container_name: cf_frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./apps/frontend:/app
+      - /app/node_modules
+    networks:
+      - cf_network
+
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
+
+networks:
+  cf_network:
+    driver: bridge

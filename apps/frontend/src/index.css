@@ -1,0 +1,188 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --sidebar-width: 260px;
+    --header-height: 64px;
+    --radius: 12px;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-surface-950 text-slate-100 font-sans;
+    background-image: 
+      radial-gradient(ellipse at 20% 50%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, rgba(16, 185, 129, 0.05) 0%, transparent 50%);
+    background-attachment: fixed;
+  }
+
+  ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-700 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-500;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply bg-white/[0.04] backdrop-blur-xl border border-white/[0.08];
+  }
+
+  .glass-hover {
+    @apply hover:bg-white/[0.07] hover:border-white/[0.12] transition-all duration-200;
+  }
+
+  .card {
+    @apply glass rounded-2xl p-5;
+  }
+
+  .card-hover {
+    @apply card glass-hover cursor-pointer;
+  }
+
+  .btn-primary {
+    @apply bg-brand-600 hover:bg-brand-500 text-white font-medium px-4 py-2 rounded-xl
+           transition-all duration-200 active:scale-95 shadow-glow/50 hover:shadow-glow
+           flex items-center gap-2 text-sm;
+  }
+
+  .btn-secondary {
+    @apply glass glass-hover text-slate-300 font-medium px-4 py-2 rounded-xl
+           transition-all duration-200 active:scale-95
+           flex items-center gap-2 text-sm;
+  }
+
+  .btn-danger {
+    @apply bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/30 text-rose-400 font-medium px-4 py-2 rounded-xl
+           transition-all duration-200 active:scale-95 flex items-center gap-2 text-sm;
+  }
+
+  .input-field {
+    @apply w-full bg-white/[0.05] border border-white/[0.1] rounded-xl px-4 py-2.5
+           text-slate-100 placeholder-slate-500 text-sm
+           focus:outline-none focus:border-brand-500/50 focus:bg-white/[0.07]
+           transition-all duration-200;
+  }
+
+  .label {
+    @apply text-xs font-medium text-slate-400 uppercase tracking-wider mb-1.5 block;
+  }
+
+  .stat-card {
+    @apply card relative overflow-hidden;
+  }
+
+  .stat-card::before {
+    content: '';
+    @apply absolute inset-0 opacity-0 transition-opacity duration-300;
+    background: radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.1), transparent 70%);
+  }
+
+  .stat-card:hover::before {
+    @apply opacity-100;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-green {
+    @apply badge bg-emerald-500/20 text-emerald-400 border border-emerald-500/20;
+  }
+
+  .badge-red {
+    @apply badge bg-rose-500/20 text-rose-400 border border-rose-500/20;
+  }
+
+  .badge-yellow {
+    @apply badge bg-amber-500/20 text-amber-400 border border-amber-500/20;
+  }
+
+  .badge-blue {
+    @apply badge bg-brand-500/20 text-brand-400 border border-brand-500/20;
+  }
+
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.03) 25%,
+      rgba(255, 255, 255, 0.08) 50%,
+      rgba(255, 255, 255, 0.03) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  .nav-item {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium
+           text-slate-400 hover:text-slate-100 hover:bg-white/[0.06]
+           transition-all duration-150 cursor-pointer relative;
+  }
+
+  .nav-item.active {
+    @apply text-slate-100 bg-white/[0.08];
+  }
+
+  .nav-item.active::before {
+    content: '';
+    @apply absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-brand-400 rounded-full;
+  }
+
+  .section-title {
+    @apply font-display text-xl font-bold text-slate-100;
+  }
+
+  .money-positive {
+    @apply text-emerald-400 font-mono font-medium;
+  }
+
+  .money-negative {
+    @apply text-rose-400 font-mono font-medium;
+  }
+
+  .money-neutral {
+    @apply text-slate-200 font-mono font-medium;
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Recharts customization */
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line {
+  stroke: rgba(255, 255, 255, 0.05) !important;
+}
+
+.recharts-text {
+  fill: rgba(148, 163, 184, 0.7) !important;
+  font-size: 11px !important;
+  font-family: 'JetBrains Mono', monospace !important;
+}
+
+.recharts-tooltip-wrapper {
+  filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.5));
+}

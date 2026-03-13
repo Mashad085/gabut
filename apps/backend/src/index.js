@@ -1,7 +1,7 @@
 import Koa from 'koa';
 import Router from '@koa/router';
 import cors from '@koa/cors';
-import { koaBody } from 'koa-body';
+import koaBody from 'koa-body';
 import helmet from 'koa-helmet';
 import logger from 'koa-logger';
 import compress from 'koa-compress';

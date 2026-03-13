@@ -104,7 +104,7 @@ adminRouter.get('/users', async (ctx) => {
   const { page = 1, limit = 20, search } = ctx.query;
   const offset = (page - 1) * limit;
   let where = 'WHERE 1=1';
-  const params: any[] = [];
+  const params = [];
   if (search) {
     params.push(`%${search}%`);
     where += ` AND (email ILIKE $${params.length} OR username ILIKE $${params.length} OR full_name ILIKE $${params.length})`;

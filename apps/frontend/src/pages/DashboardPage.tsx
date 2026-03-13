@@ -13,7 +13,6 @@ import { format, parseISO } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { reportsAPI } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
-import { formatIDR } from '@/lib/utils';
 import LoadingSkeleton from '@/components/LoadingSkeleton';
 
 const CATEGORY_COLORS = [
@@ -401,7 +400,7 @@ const MOCK_TRANSACTIONS = [
   { date: '09 Mar', description: 'Pendapatan Freelance', category: 'Income', account_name: 'Tabungan Utama', amount: 1500000, transaction_type: 'credit' },
 ];
 
-// Utils
-function formatIDR(amount: number) {
+// Utils - inline since lib/utils formatIDR has same signature
+function formatIDR(amount: number): string {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
 }

@@ -206,9 +206,9 @@ CREATE INDEX idx_audit_logs_user_id ON audit_logs(user_id, created_at DESC);
 -- SEED DATA
 -- ============================================
 INSERT INTO users (id, email, username, password_hash, full_name, role, is_verified) VALUES
-  ('00000000-0000-0000-0000-000000000001', 'admin@communityfinance.id', 'admin', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LeAoXATBuTn4ggFCu', 'Administrator', 'admin', true),
-  ('00000000-0000-0000-0000-000000000002', 'budi@example.com', 'budi_santoso', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LeAoXATBuTn4ggFCu', 'Budi Santoso', 'member', true),
-  ('00000000-0000-0000-0000-000000000003', 'siti@example.com', 'siti_rahayu', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LeAoXATBuTn4ggFCu', 'Siti Rahayu', 'member', true);
+  ('00000000-0000-0000-0000-000000000001', 'admin@communityfinance.id', 'admin', '$2b$12$rnbHxuc.3T2JRR0HU2I/CO.59Dkcn5juAyHYeRqRO8Gu1gsQ2Oa.G', 'Administrator', 'admin', true),
+  ('00000000-0000-0000-0000-000000000002', 'budi@example.com', 'budi_santoso', '$2b$12$rnbHxuc.3T2JRR0HU2I/CO.59Dkcn5juAyHYeRqRO8Gu1gsQ2Oa.G', 'Budi Santoso', 'member', true),
+  ('00000000-0000-0000-0000-000000000003', 'siti@example.com', 'siti_rahayu', '$2b$12$rnbHxuc.3T2JRR0HU2I/CO.59Dkcn5juAyHYeRqRO8Gu1gsQ2Oa.G', 'Siti Rahayu', 'member', true);
 
 -- Password for all: password123
 
@@ -218,3 +218,31 @@ INSERT INTO communities (id, name, slug, description, community_type, is_public,
   ('00000000-0000-0000-0000-000000000012', 'Club Investasi Muda', 'investasi-muda', 'Komunitas investasi untuk generasi muda', 'investment_club', true, '00000000-0000-0000-0000-000000000002');
 
 UPDATE users SET updated_at = NOW();
+
+-- ============================================
+-- JOB QUEUE (pengganti RabbitMQ)
+-- ============================================
+CREATE TABLE IF NOT EXISTS job_queue (
+  id           BIGSERIAL    PRIMARY KEY,
+  type         VARCHAR(60)  NOT NULL,
+  payload      JSONB        NOT NULL DEFAULT '{}',
+  status       VARCHAR(20)  NOT NULL DEFAULT 'pending'
+                 CHECK (status IN ('pending','processing','done','failed')),
+  priority     SMALLINT     NOT NULL DEFAULT 5,
+  attempts     SMALLINT     NOT NULL DEFAULT 0,
+  last_error   TEXT,
+  run_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+  started_at   TIMESTAMPTZ,
+  completed_at TIMESTAMPTZ,
+  created_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_job_queue_pending
+  ON job_queue (priority ASC, run_at ASC)
+  WHERE status = 'pending';
+
+-- Grant permissions to cfuser
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO cfuser;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO cfuser;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO cfuser;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO cfuser;

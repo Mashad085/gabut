@@ -128,3 +128,5 @@ adminRouter.get('/audit-logs', async (ctx) => {
   );
   ctx.body = { data: result.rows };
 });
+
+export default budgetsRouter;

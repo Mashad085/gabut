@@ -1,4 +1,11 @@
 import pg from 'pg';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import dotenv from 'dotenv';
+
+// Ensure .env is loaded regardless of cwd
+const __dirname = dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: join(__dirname, '../../.env') });
 
 const { Pool } = pg;
 
@@ -6,26 +13,20 @@ export const db = new Pool({
   connectionString: process.env.DATABASE_URL,
   max: 20,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  connectionTimeoutMillis: 5000,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 });
 
 db.on('error', (err) => {
-  console.error('PostgreSQL pool error:', err);
+  console.error('PostgreSQL pool error:', err.message);
 });
 
-// Query helper with automatic client release
-export const query = async (text, params) => {
-  const start = Date.now();
-  const res = await db.query(text, params);
-  const duration = Date.now() - start;
-  
-  if (process.env.NODE_ENV === 'development' && duration > 100) {
-    console.log('Slow query:', { text, duration, rows: res.rowCount });
-  }
-  
-  return res;
-};
+// Verify connectivity
+export async function testConnection() {
+  const client = await db.connect();
+  await client.query('SELECT 1');
+  client.release();
+}
 
 // Transaction helper
 export const withTransaction = async (callback) => {
@@ -42,3 +43,5 @@ export const withTransaction = async (callback) => {
     client.release();
   }
 };
+
+export default db;

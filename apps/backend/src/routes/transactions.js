@@ -2,7 +2,7 @@ import Router from '@koa/router';
 import { z } from 'zod';
 import { db, withTransaction } from '../db/postgres.js';
 import { cache } from '../db/redis.js';
-import { rabbitMQ } from '../services/rabbitmq.js';
+import { enqueue, JOB_TYPES } from '../services/jobQueue.js';
 import { authenticate } from '../middleware/authenticate.js';
 
 const router = new Router();
@@ -173,10 +173,12 @@ router.post('/', async (ctx) => {
   await cache.delPattern(`transactions:${userId}:*`);
   await cache.delPattern(`accounts:${userId}:*`);
   
-  // Publish event
-  await rabbitMQ.publishToExchange(rabbitMQ.exchanges.FINANCE, 'transaction.created', {
-    userId,
-    transaction: result,
+  // Enqueue notification for transaction
+  await enqueue(JOB_TYPES.PROCESS_TRANSACTION, {
+    user_id: userId,
+    amount: result.amount,
+    type: result.type,
+    description: result.description,
   });
   
   ctx.status = 201;

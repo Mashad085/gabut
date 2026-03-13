@@ -2,7 +2,7 @@ import Router from '@koa/router';
 import { z } from 'zod';
 import { db, withTransaction } from '../db/postgres.js';
 import { cache } from '../db/redis.js';
-import { rabbitMQ } from '../services/rabbitmq.js';
+import { enqueue, JOB_TYPES } from '../services/jobQueue.js';
 import { authenticate } from '../middleware/authenticate.js';
 
 const router = new Router();
@@ -172,12 +172,21 @@ router.post('/:id/join', async (ctx) => {
     [ctx.params.id, userId]
   );
   
-  // Notify community admins
-  await rabbitMQ.publish(rabbitMQ.queues.NOTIFICATIONS, {
-    type: 'community.member_joined',
-    communityId: ctx.params.id,
-    userId,
-  });
+  // Notify community admins via job queue
+  const admins = await ctx.db.query(
+    `SELECT cm.user_id FROM community_members cm WHERE cm.community_id = $1 AND cm.role = 'admin'`,
+    [ctx.params.id]
+  );
+  const joiner = await ctx.db.query('SELECT full_name FROM users WHERE id = $1', [userId]);
+  for (const admin of admins.rows) {
+    await enqueue(JOB_TYPES.SEND_NOTIFICATION, {
+      user_id: admin.user_id,
+      title: 'Anggota Baru Bergabung',
+      message: `${joiner.rows[0]?.full_name || 'Seseorang'} telah bergabung ke komunitas`,
+      type: 'community',
+      metadata: { communityId: ctx.params.id, userId },
+    });
+  }
   
   ctx.body = { message: 'Successfully joined community' };
 });

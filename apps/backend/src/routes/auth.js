@@ -7,7 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 import { db } from '../db/postgres.js';
 import { cache } from '../db/redis.js';
-import { rabbitMQ } from '../services/rabbitmq.js';
+import { enqueue, JOB_TYPES } from '../services/jobQueue.js';
 import { authenticate } from '../middleware/authenticate.js';
 
 const router = new Router();
@@ -78,8 +78,8 @@ router.post('/register', async (ctx) => {
     [userId, accountNumber]
   );
   
-  // Publish welcome event
-  await rabbitMQ.publish(rabbitMQ.queues.EMAILS, {
+  // Enqueue welcome email
+  await enqueue(JOB_TYPES.SEND_EMAIL, {
     type: 'welcome',
     userId,
     email: body.email,

@@ -1,53 +1,90 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Filter, Plus, Download, CheckCircle2, ArrowUpRight, ArrowDownRight, ArrowLeftRight } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { motion } from 'framer-motion';
+import { Search, Plus, ArrowUpRight, ArrowDownRight, ArrowLeftRight, Filter } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
-import { id } from 'date-fns/locale';
-import { transactionsAPI } from '@/lib/api';
+import { id as idLocale } from 'date-fns/locale';
+import { transactionsAPI, accountsAPI } from '@/lib/api';
+import Modal from '@/components/Modal';
+import FormField from '@/components/FormField';
+import toast from 'react-hot-toast';
 
-const formatIDR = (v: number) =>
-  new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 2 }).format(v);
+const idr = (v: number) =>
+  new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(v);
 
-const MOCK_TRANSACTIONS = [
-  { id: '1', transaction_date: '2023-06-05', payee: 'Deposit', category: 'Income', amount: 600960, transaction_type: 'credit', account_name: 'Ally Savings' },
-  { id: '2', transaction_date: '2023-05-31', payee: 'Deposit', category: 'Income', amount: 740300, transaction_type: 'credit', account_name: 'Ally Savings' },
-  { id: '3', transaction_date: '2023-05-26', payee: 'Online Store', category: 'Clothing', amount: 91980, transaction_type: 'debit', account_name: 'Ally Savings' },
-  { id: '4', transaction_date: '2023-05-21', payee: 'Movies', category: 'Food', amount: 77770, transaction_type: 'debit', account_name: 'Ally Savings' },
-  { id: '5', transaction_date: '2023-05-16', payee: 'Deposit', category: 'Income', amount: 207610, transaction_type: 'credit', account_name: 'Ally Savings' },
-  { id: '6', transaction_date: '2023-05-11', payee: 'Online Store', category: 'Food', amount: 29790, transaction_type: 'debit', account_name: 'Ally Savings' },
-  { id: '7', transaction_date: '2023-05-06', payee: 'Kroger', category: 'Medical', amount: 58140, transaction_type: 'debit', account_name: 'Ally Savings' },
-  { id: '8', transaction_date: '2023-05-01', payee: 'Publix', category: 'General', amount: 62410, transaction_type: 'debit', account_name: 'Ally Savings' },
-  { id: '9', transaction_date: '2023-04-26', payee: 'Publix', category: 'General', amount: 70860, transaction_type: 'debit', account_name: 'Ally Savings' },
-  { id: '10', transaction_date: '2023-04-21', payee: 'Deposit', category: 'Income', amount: 354090, transaction_type: 'credit', account_name: 'Ally Savings' },
-  { id: '11', transaction_date: '2023-04-16', payee: 'Movies', category: 'Gift', amount: 59800, transaction_type: 'debit', account_name: 'Ally Savings' },
-  { id: '12', transaction_date: '2023-04-11', payee: 'Online Store', category: 'Clothing', amount: 62510, transaction_type: 'debit', account_name: 'Ally Savings' },
-  { id: '13', transaction_date: '2023-04-06', payee: 'Deposit', category: 'Income', amount: 693730, transaction_type: 'credit', account_name: 'Ally Savings' },
-  { id: '14', transaction_date: '2023-04-01', payee: 'Publix', category: 'General', amount: 53630, transaction_type: 'debit', account_name: 'Ally Savings' },
-  { id: '15', transaction_date: '2023-03-27', payee: 'Movies', category: 'General', amount: 41970, transaction_type: 'debit', account_name: 'Ally Savings' },
-  { id: '16', transaction_date: '2023-03-22', payee: 'Online Store', category: 'Gift', amount: 28670, transaction_type: 'debit', account_name: 'Ally Savings' },
-  { id: '17', transaction_date: '2023-03-17', payee: 'Publix', category: 'Food', amount: 67310, transaction_type: 'debit', account_name: 'Ally Savings' },
-];
+const CATEGORIES = ['Makanan','Restoran','Belanja','Hiburan','Transportasi','Kesehatan','Pendidikan','Tagihan','Gaji','Investasi','Transfer','Lainnya'];
 
-const CATEGORY_COLORS: Record<string, string> = {
-  Income: 'badge-green',
-  Clothing: 'badge-blue',
-  Food: 'badge-yellow',
-  Medical: 'badge-red',
-  General: 'badge-blue',
-  Gift: 'badge-blue',
+function TxnForm({ accounts, onSave, loading }: { accounts: any[]; onSave: (d: any) => void; loading: boolean }) {
+  const [form, setForm] = useState({
+    account_id: accounts[0]?.id || '',
+    transaction_type: 'debit' as 'debit'|'credit',
+    amount: 0,
+    description: '',
+    payee: '',
+    category: 'Lainnya',
+  });
+  const set = (k: string, v: any) => setForm(p => ({ ...p, [k]: v }));
+  return (
+    <div className="space-y-4">
+      <FormField label="Rekening" required>
+        <select className="input-field w-full" value={form.account_id} onChange={e => set('account_id', e.target.value)}>
+          {accounts.map(a => <option key={a.id} value={a.id}>{a.account_name} — {idr(a.balance)}</option>)}
+        </select>
+      </FormField>
+      <div className="grid grid-cols-2 gap-3">
+        <FormField label="Tipe" required>
+          <select className="input-field w-full" value={form.transaction_type} onChange={e => set('transaction_type', e.target.value)}>
+            <option value="debit">Pengeluaran</option>
+            <option value="credit">Pemasukan</option>
+          </select>
+        </FormField>
+        <FormField label="Kategori">
+          <select className="input-field w-full" value={form.category} onChange={e => set('category', e.target.value)}>
+            {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </FormField>
+      </div>
+      <FormField label="Jumlah" required>
+        <input type="number" className="input-field w-full" value={form.amount||''} onChange={e=>set('amount',parseFloat(e.target.value)||0)} min={1} />
+      </FormField>
+      <FormField label="Tujuan / Sumber">
+        <input className="input-field w-full" value={form.payee} onChange={e=>set('payee',e.target.value)} placeholder="cth. Supermarket, Gaji" />
+      </FormField>
+      <FormField label="Keterangan">
+        <input className="input-field w-full" value={form.description} onChange={e=>set('description',e.target.value)} />
+      </FormField>
+      <button onClick={()=>onSave(form)} disabled={loading||!form.account_id||!form.amount} className="btn-primary w-full justify-center">
+        {loading?'Menyimpan...':'Simpan Transaksi'}
+      </button>
+    </div>
+  );
+}
+
+const TXN_ICON: Record<string,any> = {
+  credit: ArrowUpRight, debit: ArrowDownRight, transfer: ArrowLeftRight,
+};
+const TXN_COLOR: Record<string,string> = {
+  credit: 'text-emerald-400', debit: 'text-rose-400', transfer: 'text-brand-400',
 };
 
 export default function TransactionsPage() {
+  const qc = useQueryClient();
+  const [modal, setModal] = useState(false);
   const [search, setSearch] = useState('');
-  const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
+  const [typeFilter, setTypeFilter] = useState<string>('');
 
-  const { data } = useQuery({
-    queryKey: ['transactions', selectedAccount],
-    queryFn: () => transactionsAPI.list({ account_id: selectedAccount }),
+  const { data: accounts = [] } = useQuery({ queryKey: ['accounts'], queryFn: accountsAPI.list });
+  const { data, isLoading } = useQuery({
+    queryKey: ['transactions', typeFilter],
+    queryFn: () => transactionsAPI.list(typeFilter ? { transaction_type: typeFilter } : undefined),
   });
+  const transactions: any[] = data?.data || [];
 
-  const transactions = data?.data || MOCK_TRANSACTIONS;
+  const createMut = useMutation({
+    mutationFn: transactionsAPI.create,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['transactions'] }); qc.invalidateQueries({ queryKey: ['accounts'] }); setModal(false); toast.success('Transaksi dicatat'); },
+    onError: (e: any) => toast.error(e.response?.data?.error || 'Gagal menyimpan'),
+  });
 
   const filtered = transactions.filter((t: any) =>
     !search ||
@@ -56,114 +93,73 @@ export default function TransactionsPage() {
     t.description?.toLowerCase().includes(search.toLowerCase())
   );
 
-  const accountBalance = 4985300;
-
   return (
     <div className="flex flex-col h-full">
-      {/* Account header */}
-      <div className="px-6 py-5 border-b border-white/[0.05]">
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="font-display text-xl font-bold text-slate-100">Tabungan Ally</h1>
-            <p className="font-mono text-2xl font-semibold text-emerald-400 mt-0.5">
-              {formatIDR(accountBalance)}
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <button className="btn-secondary">
-              <Download size={14} /> Export
-            </button>
-            <button className="btn-secondary">
-              <Filter size={14} /> Filter
-            </button>
-            <button className="btn-primary">
-              <Plus size={14} /> Tambah Baru
-            </button>
-          </div>
+      <div className="px-4 sm:px-6 py-4 border-b border-white/[0.05] space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="font-display text-xl font-bold text-slate-100">Transaksi</h1>
+          <button onClick={() => setModal(true)} className="btn-primary">
+            <Plus size={14} /> <span className="hidden sm:inline">Tambah</span>
+          </button>
         </div>
-
-        {/* Search */}
-        <div className="mt-4 flex gap-3">
-          <div className="relative flex-1 max-w-sm">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Cari transaksi..."
-              className="input-field pl-9"
-            />
+        <div className="flex gap-2 flex-wrap">
+          <div className="relative flex-1 min-w-[160px]">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Cari transaksi..." className="input-field pl-9 w-full text-sm" />
+          </div>
+          <div className="flex gap-1">
+            {[['','Semua'],['credit','Masuk'],['debit','Keluar'],['transfer','Transfer']].map(([v,l])=>(
+              <button key={v} onClick={()=>setTypeFilter(v)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${typeFilter===v?'bg-brand-600 text-white':'text-slate-400 hover:text-slate-200 hover:bg-white/[0.06]'}`}>{l}</button>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* Table */}
       <div className="flex-1 overflow-y-auto">
-        <table className="w-full text-sm">
-          <thead className="sticky top-0 z-10 glass border-b border-white/[0.06]">
-            <tr className="text-xs text-slate-500 uppercase tracking-wider">
-              <th className="py-3 pl-6 pr-3 text-left font-medium w-8">
-                <input type="checkbox" className="rounded" />
-              </th>
-              <th className="py-3 px-3 text-left font-medium">Tanggal</th>
-              <th className="py-3 px-3 text-left font-medium">Penerima</th>
-              <th className="py-3 px-3 text-left font-medium">Catatan</th>
-              <th className="py-3 px-3 text-left font-medium">Kategori</th>
-              <th className="py-3 px-3 text-right font-medium">Pembayaran</th>
-              <th className="py-3 px-3 pr-6 text-right font-medium">Deposit</th>
-              <th className="py-3 pr-6 w-8"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/[0.03]">
-            <AnimatePresence>
-              {filtered.map((txn: any, i: number) => {
-                const isCredit = txn.transaction_type === 'credit';
-                const dateStr = txn.transaction_date
-                  ? format(parseISO(txn.transaction_date), 'dd/MM/yyyy')
-                  : txn.date;
-
-                return (
-                  <motion.tr
-                    key={txn.id}
-                    initial={{ opacity: 0, x: -4 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.02 }}
-                    className="hover:bg-white/[0.02] transition-colors group cursor-pointer"
-                  >
-                    <td className="py-2.5 pl-6 pr-3">
-                      <input type="checkbox" className="rounded opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </td>
-                    <td className="py-2.5 px-3 font-mono text-xs text-slate-400 whitespace-nowrap">{dateStr}</td>
-                    <td className="py-2.5 px-3 text-sm text-slate-200">{txn.payee || txn.description || '—'}</td>
-                    <td className="py-2.5 px-3 text-xs text-slate-500">{txn.notes || ''}</td>
-                    <td className="py-2.5 px-3">
-                      <span className={`badge text-[10px] ${CATEGORY_COLORS[txn.category] || 'badge-blue'}`}>
-                        {txn.category}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3 text-right font-mono text-xs">
-                      {!isCredit ? (
-                        <span className="text-rose-400">{formatIDR(txn.amount)}</span>
-                      ) : (
-                        <span className="text-slate-600">—</span>
-                      )}
-                    </td>
-                    <td className="py-2.5 px-3 pr-2 text-right font-mono text-xs">
-                      {isCredit ? (
-                        <span className="text-emerald-400">{formatIDR(txn.amount)}</span>
-                      ) : (
-                        <span className="text-slate-600">—</span>
-                      )}
-                    </td>
-                    <td className="py-2.5 pr-6">
-                      <CheckCircle2 size={14} className="text-emerald-500 ml-auto" />
-                    </td>
-                  </motion.tr>
-                );
-              })}
-            </AnimatePresence>
-          </tbody>
-        </table>
+        {isLoading ? (
+          <div className="p-4 space-y-2">{[...Array(6)].map((_,i)=><div key={i} className="card animate-pulse h-14"/>)}</div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-48 text-slate-500">
+            <ArrowLeftRight size={32} className="mb-3 opacity-40" />
+            <p className="text-sm">Belum ada transaksi</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-white/[0.04]">
+            {filtered.map((t: any, i: number) => {
+              const Icon = TXN_ICON[t.transaction_type] || ArrowLeftRight;
+              const color = TXN_COLOR[t.transaction_type] || 'text-slate-400';
+              return (
+                <motion.div key={t.id} initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay: i*0.02 }}
+                  className="flex items-center gap-3 sm:gap-4 px-4 sm:px-6 py-3 hover:bg-white/[0.03] transition-colors">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${color} bg-current/10`} style={{background:'rgba(99,102,241,0.1)'}}>
+                    <Icon size={14} className={color} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-slate-200 truncate">{t.payee || t.description || 'Transaksi'}</p>
+                    <p className="text-xs text-slate-500">{t.category} · {t.account_name}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className={`font-mono text-sm font-medium ${color}`}>
+                      {t.transaction_type==='credit'?'+':'-'}{idr(parseFloat(t.amount))}
+                    </p>
+                    <p className="text-xs text-slate-600">
+                      {t.transaction_date ? format(parseISO(t.transaction_date), 'd MMM yy', { locale: idLocale }) : ''}
+                    </p>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
       </div>
+
+      <Modal open={modal} onClose={()=>setModal(false)} title="Tambah Transaksi" size="lg">
+        {accounts.length === 0 ? (
+          <p className="text-slate-400 text-sm text-center py-4">Buat rekening terlebih dahulu sebelum menambah transaksi.</p>
+        ) : (
+          <TxnForm accounts={accounts} onSave={d=>createMut.mutate(d)} loading={createMut.isPending} />
+        )}
+      </Modal>
     </div>
   );
 }

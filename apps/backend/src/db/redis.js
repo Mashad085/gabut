@@ -6,13 +6,34 @@ import dotenv from 'dotenv';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: join(__dirname, '../../.env') });
 
-export const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
-  retryStrategy(times) {
-    return Math.min(times * 50, 2000);
-  },
-  lazyConnect: false,
-  maxRetriesPerRequest: 3,
-});
+// Parse URL secara manual — agar password tidak pernah terkirim sebagai undefined/null
+function buildRedisOptions() {
+  const url = process.env.REDIS_URL || 'redis://localhost:6379';
+  try {
+    const parsed = new URL(url);
+    const opts = {
+      host: parsed.hostname || '127.0.0.1',
+      port: parseInt(parsed.port || '6379', 10),
+      retryStrategy(times) { return Math.min(times * 50, 2000); },
+      lazyConnect: false,
+      maxRetriesPerRequest: 3,
+    };
+    // Hanya set password jika benar-benar ada (bukan string kosong)
+    const pass = parsed.password;
+    if (pass && pass.length > 0) opts.password = pass;
+    return opts;
+  } catch {
+    return {
+      host: '127.0.0.1',
+      port: 6379,
+      retryStrategy(times) { return Math.min(times * 50, 2000); },
+      lazyConnect: false,
+      maxRetriesPerRequest: 3,
+    };
+  }
+}
+
+export const redis = new Redis(buildRedisOptions());
 
 redis.on('connect', () => console.log('Redis: connected'));
 redis.on('error',   (err) => console.error('Redis error:', err.message));

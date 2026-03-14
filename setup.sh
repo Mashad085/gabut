@@ -135,3 +135,19 @@ echo -e "  ${CYAN}Akun demo:${NC}"
 echo -e "  admin@communityfinance.id / password123"
 echo -e "  budi@example.com          / password123"
 echo ""
+
+# ── Install GnuCOBOL & compile business logic ────────────────────────────────
+echo ""
+echo "▶ Installing GnuCOBOL..."
+if ! which cobc > /dev/null 2>&1; then
+    apt-get install -y gnucobol 2>/dev/null || \
+    apt-get install -y gnucobol3 2>/dev/null || \
+    echo "⚠ GnuCOBOL not installed — install manually: sudo apt-get install gnucobol"
+fi
+
+echo "▶ Compiling COBOL business logic..."
+if which cobc > /dev/null 2>&1; then
+    cd cobol && make all 2>/dev/null && echo "✅ COBOL modules compiled" && cd ..
+else
+    echo "⚠ Skipping COBOL compile — cobc not found"
+fi

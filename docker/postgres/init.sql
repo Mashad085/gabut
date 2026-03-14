@@ -246,3 +246,34 @@ GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO cfuser;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO cfuser;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO cfuser;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO cfuser;
+
+-- ============================================
+-- WALLET (mata uang internal komunitas)
+-- ============================================
+CREATE TABLE IF NOT EXISTS wallets (
+  id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id      UUID UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  balance      DECIMAL(15,2) DEFAULT 0.00,
+  currency     VARCHAR(10)  DEFAULT 'KOIN',
+  created_at   TIMESTAMPTZ  DEFAULT NOW(),
+  updated_at   TIMESTAMPTZ  DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS wallet_transactions (
+  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  wallet_id       UUID REFERENCES wallets(id) ON DELETE CASCADE,
+  from_wallet_id  UUID REFERENCES wallets(id),
+  to_wallet_id    UUID REFERENCES wallets(id),
+  type            VARCHAR(20) NOT NULL CHECK (type IN ('topup','transfer','deduction')),
+  amount          DECIMAL(15,2) NOT NULL,
+  balance_after   DECIMAL(15,2) NOT NULL,
+  note            TEXT,
+  created_by      UUID REFERENCES users(id),
+  created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_wallet_transactions_wallet
+  ON wallet_transactions(wallet_id, created_at DESC);
+
+-- Auto-create wallet for existing users
+INSERT INTO wallets (user_id) SELECT id FROM users ON CONFLICT (user_id) DO NOTHING;

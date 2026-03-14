@@ -63,7 +63,7 @@ function ChartCard({ title, subtitle, children }: any) {
 
 export default function ReportsPage() {
   const { data } = useQuery({ queryKey: ['dashboard'], queryFn: reportsAPI.dashboard });
-  const { data: costData } = useQuery({ queryKey: ['cost-of-living'], queryFn: reportsAPI.costOfLiving });
+  const { data: costData } = useQuery({ queryKey: ['cost-of-living'], queryFn: reportsAPI.monthly });
 
   const cashflow = (data?.monthly_cashflow || MOCK_CASHFLOW).slice(-8).map((d: any) => ({
     month: d.month ? format(parseISO(d.month), 'MMM yy', { locale: id }) : d.month,

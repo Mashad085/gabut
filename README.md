@@ -1,221 +1,233 @@
-# 🏦 CommunityFinance — Platform Keuangan Komunitas
+# ChatApp v3.0 — Production-Ready Real-time Chat
 
-Platform all-in-one untuk mengelola keuangan pribadi dan komunitas dengan keamanan tingkat enterprise.
+Stack lengkap sesuai referensi: **Node.js + Express + Socket.IO + RabbitMQ + Redis + SQLite + JWT**
 
-## 🏗️ Arsitektur
-
-```
-community-finance/
-├── apps/
-│   ├── frontend/          # React + Vite + TailwindCSS + Framer Motion
-│   ├── backend/           # Node.js + Koa.js (REST API)
-│   └── worker/            # Background job processor
-├── packages/
-│   └── shared/            # Shared types & utilities
-└── docker/                # Docker configs
-    ├── postgres/
-    └── rabbitmq/
-```
-
-## 🛠️ Tech Stack
-
-| Layer | Teknologi |
-|-------|-----------|
-| **Frontend** | React 18, Vite, TypeScript, TailwindCSS, Framer Motion |
-| **Backend** | Node.js, **Koa.js** (framework), JWT Auth, Zod validation |
-| **Database** | PostgreSQL 15 |
-| **Cache** | Redis 7 |
-| **Message Queue** | **RabbitMQ** (amqplib) |
-| **Worker** | Node.js background jobs + node-cron |
-| **Security** | JWT + Refresh tokens, bcrypt, 2FA (TOTP), Rate limiting, Audit logs |
-| **State** | Zustand (client), React Query (server) |
-| **Charts** | Recharts |
+---
 
 ## 🚀 Cara Menjalankan
 
-### Prerequisites
-- Docker & Docker Compose
-- Node.js 20+
-- npm 9+
+### Prasyarat
+- Node.js v18+
+- RabbitMQ (port 5672)
+- Redis (port 6379)
 
-### 1. Clone & Install
+### Setup Cepat
 ```bash
-git clone <repo-url>
-cd community-finance
-npm run install:all
-```
+# 1. Install dependencies
+npm install
 
-### 2. Setup Environment
-```bash
-cp apps/backend/.env.example apps/backend/.env
-cp apps/frontend/.env.example apps/frontend/.env
-```
+# 2. Konfigurasi (opsional — default sudah bisa jalan)
+cp .env.example .env
+nano .env
 
-### 3. Jalankan Infrastructure (Docker)
-```bash
-npm run docker:up
-```
+# 3. Jalankan
+npm start
 
-Ini akan menjalankan:
-- PostgreSQL (port 5432)
-- Redis (port 6379)  
-- RabbitMQ (port 5672, Management UI: 15672)
-
-### 4. Jalankan Semua Services
-```bash
+# 4. Development (auto-restart)
 npm run dev
 ```
 
-Atau jalankan per service:
+### Jalankan RabbitMQ + Redis (jika belum ada)
 ```bash
-npm run dev:backend    # API: http://localhost:3001
-npm run dev:frontend   # UI:  http://localhost:5173
-npm run dev:worker     # Background worker
+# Docker (paling mudah)
+docker run -d --name redis    -p 6379:6379 redis:alpine
+docker run -d --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:management
+
+# Atau install langsung (Ubuntu/Debian)
+sudo apt install redis-server rabbitmq-server
+sudo systemctl start redis rabbitmq-server
 ```
 
-### 5. Akses Aplikasi
-- **Frontend**: http://localhost:5173
-- **API**: http://localhost:3001/api/v1
-- **API Health**: http://localhost:3001/api/v1/health
-- **RabbitMQ UI**: http://localhost:15672 (cfrabbit/rabbitpass123)
+### Akses
+| URL | Keterangan |
+|-----|------------|
+| `http://localhost:3000` | Chat App |
+| `http://localhost:3000/admin` | Admin Panel |
+| `http://localhost:15672` | RabbitMQ Management UI |
 
-### Demo Credentials
-```
-Email: admin@communityfinance.id
-Password: password123
-```
+**Login admin: `admin` / `admin123`**
 
-## 🔒 Fitur Keamanan
+---
 
-- ✅ **JWT Authentication** — Access token (15 menit) + Refresh token (7 hari)
-- ✅ **2FA/TOTP** — Google Authenticator compatible
-- ✅ **Rate Limiting** — Per IP, per endpoint
-- ✅ **Token Blacklisting** — via Redis
-- ✅ **Audit Logging** — Semua aksi user tercatat
-- ✅ **bcrypt** — Password hashing dengan salt rounds 12
-- ✅ **CORS** — Configured per origin
-- ✅ **Helmet** — HTTP security headers
-- ✅ **Input Validation** — Zod schema validation
-- ✅ **SQL Injection Prevention** — Parameterized queries
-- ✅ **Transaction Integrity** — PostgreSQL ACID transactions
-
-## 📊 Fitur Utama
-
-### 🏦 Perbankan Pribadi
-- Multi-rekening (Tabungan, Giro, Investasi, Pinjaman)
-- Transfer antar rekening
-- Riwayat transaksi dengan filter & pencarian
-- Transaksi terjadwal (recurring)
-- Kategorisasi otomatis
-
-### 👥 Komunitas
-- **Arisan** — Manajemen arisan dengan giliran otomatis
-- **Koperasi** — Simpan pinjam dengan bunga
-- **Grup Tabungan** — Dana bersama
-- **Klub Investasi** — Portofolio kolektif
-- Approval workflow untuk transaksi komunitas
-- Peran: Admin, Bendahara, Anggota
-
-### 💰 Anggaran & Laporan
-- Budget planner bulanan/tahunan
-- Laporan: Net Worth, Cash Flow, Cost of Living
-- Grafik: Area, Bar, Pie, Line charts
-- Perbandingan periode
-
-### 🔔 Notifikasi
-- Real-time via RabbitMQ
-- Email notifications (configurable)
-- In-app notifications
-
-## 🔄 Message Queue (RabbitMQ)
+## 📁 Struktur Project
 
 ```
-Exchanges:
-  finance.events (topic)     → transaction.*
-  notifications.fanout       → broadcast
-
-Queues:
-  notifications              → handle user notifications
-  transactions.process       → process transaction events  
-  emails.send                → send email notifications
-  scheduled.jobs             → trigger scheduled tasks
-  audit.logs                 → write audit trail
+chatapp/
+├── server.js               # Entry point — boot semua services
+├── app.js                  # Express app factory
+├── .env                    # Environment variables
+├── package.json
+│
+├── src/
+│   ├── config/
+│   │   ├── database.js     # SQLite (sql.js) — schema, repo, seed
+│   │   └── redis.js        # ioredis — cache, online users, sessions
+│   │
+│   ├── services/
+│   │   ├── broker.js       # RabbitMQ (amqplib) — exchanges, queues, pub/sub
+│   │   └── socket.js       # Socket.IO handlers + admin namespace
+│   │
+│   ├── middleware/
+│   │   └── security.js     # JWT, rate limit, helmet, cors, Joi, sanitizer
+│   │
+│   ├── routes/
+│   │   ├── auth.js         # /api/auth/register|login|logout|me
+│   │   ├── chat.js         # /api/rooms, /api/rooms/:id/messages
+│   │   └── admin.js        # /api/admin/* (semua admin endpoints)
+│   │
+│   └── utils/
+│       └── logger.js       # Winston logger + Morgan stream
+│
+├── public/
+│   ├── index.html          # Chat App frontend
+│   └── admin/
+│       └── index.html      # Admin Dashboard
+│
+└── data/
+    └── chatapp.db          # SQLite database file (auto-created)
 ```
 
-## 🗄️ Database Schema
+---
 
-```sql
-users → bank_accounts → transactions
-     → budgets → budget_categories
-     → notifications
-     → audit_logs
+## 🛠️ Tech Stack
 
-communities → community_members
-           → community_funds
-           → community_transactions
+| Layer | Package | Fungsi |
+|-------|---------|--------|
+| Runtime | `node` v18+ | JavaScript runtime |
+| Framework | `express` v5 | REST API |
+| Config | `dotenv` | Environment variables |
+| Realtime | `socket.io` | WebSocket bidirectional |
+| Database | `sql.js` (SQLite) | Persistent storage (pure JS) |
+| Cache | `ioredis` | Redis — session cache, online users |
+| Broker | `amqplib` | RabbitMQ — message routing |
+| Auth | `jsonwebtoken` | JWT access tokens |
+| Password | `bcryptjs` | Bcrypt hashing |
+| Validation | `joi` | Input schema validation |
+| Security | `helmet` | HTTP security headers |
+| CORS | `cors` | Cross-origin control |
+| Rate Limit | `express-rate-limit` | Brute-force protection |
+| Logging | `winston` + `morgan` | Structured logging |
+| ID | `uuid` | Unique identifiers |
+
+---
+
+## 📡 RabbitMQ Architecture
+
+### Exchanges
+| Exchange | Type | Fungsi |
+|----------|------|--------|
+| `chatapp.topic` | topic | Routing berdasarkan routing key |
+| `chatapp.fanout` | fanout | Broadcast ke semua consumer |
+
+### Queues & Bindings
+| Queue | Binding | Konsumsi |
+|-------|---------|----------|
+| `q.chat` | `chat.#` | Semua pesan chat |
+| `q.audit` | `user.#`, `admin.#` | Audit trail |
+| `q.notifications` | `user.#` | Notifikasi user |
+| `q.admin` | `#` (semua) | Admin monitoring feed |
+
+### Topics
+```
+chat.message     — Pesan baru terkirim
+chat.typing      — User sedang mengetik
+chat.read        — Pesan dibaca
+user.status      — Online/offline
+user.login       — User login
+user.logout      — User logout
+user.banned      — User diblokir
+admin.action     — Aksi admin
+system.alert     — Alert sistem
+system.broadcast — Broadcast ke semua user
 ```
 
-## 📁 API Endpoints
+---
 
-```
-POST   /api/v1/auth/register
-POST   /api/v1/auth/login
-POST   /api/v1/auth/refresh
-POST   /api/v1/auth/logout
-GET    /api/v1/auth/me
-POST   /api/v1/auth/2fa/setup
-POST   /api/v1/auth/2fa/verify
+## 🔐 Keamanan
 
-GET    /api/v1/accounts
-POST   /api/v1/accounts
-GET    /api/v1/accounts/:id
-PUT    /api/v1/accounts/:id
+| Fitur | Detail |
+|-------|--------|
+| JWT Auth | 24 jam, verifikasi di setiap request |
+| Password | bcrypt hash (salt rounds 10) |
+| Joi Validation | Schema validation semua input |
+| Rate Limiting | Login 10x/15min, API 120x/min, Socket 60msg/min |
+| Helmet | 11 security headers HTTP |
+| CORS | Kontrol origin yang diizinkan |
+| XSS Sanitizer | Strip script tags, event handlers |
+| Suspicious Detector | Auto-flag pesan mencurigakan |
+| Session Cache | Redis — revoke instan tanpa DB |
+| Redis Session | Cache session untuk performa |
 
-GET    /api/v1/transactions
-POST   /api/v1/transactions
-GET    /api/v1/transactions/:id
-GET    /api/v1/transactions/stats/summary
+---
 
-GET    /api/v1/communities
-GET    /api/v1/communities/my
-POST   /api/v1/communities
-GET    /api/v1/communities/:id
-POST   /api/v1/communities/:id/join
-GET    /api/v1/communities/:id/members
-POST   /api/v1/communities/:id/contribute
+## 🛡️ Admin Panel
 
-GET    /api/v1/reports/dashboard
-GET    /api/v1/reports/investment
-GET    /api/v1/reports/cost-of-living
-GET    /api/v1/reports/net-worth
+**URL:** `/admin` | **Login:** `admin / admin123`
 
-GET    /api/v1/budgets
-POST   /api/v1/budgets
-GET    /api/v1/budgets/:id
+Fitur:
+- Dashboard statistik real-time (users, messages, sessions, broker events)
+- Grafik aktivitas pesan 7 hari
+- Manajemen user: ban/unban
+- Monitor sesi aktif + revoke paksa
+- Pesan flagged + hapus
+- Audit log semua aksi
+- Live broker events via WebSocket `/admin-ws`
+- Broadcast ke semua pengguna online
 
-GET    /api/v1/notifications
-PATCH  /api/v1/notifications/:id/read
-PATCH  /api/v1/notifications/read-all
+---
 
-GET    /api/v1/admin/stats          [admin only]
-GET    /api/v1/admin/users          [admin only]
-GET    /api/v1/admin/audit-logs     [admin only]
+## 🗄️ Database
+
+### Migrasi ke MongoDB
+```javascript
+// src/config/database.js — ganti initDB() dengan:
+const mongoose = require('mongoose');
+await mongoose.connect(process.env.MONGODB_URI);
+// Buat Mongoose models untuk User, Room, Message, Session, AuditLog
 ```
 
-## 🌐 Production Deployment
+### Migrasi ke PostgreSQL
+```javascript
+const { Sequelize } = require('sequelize');
+const sequelize = new Sequelize(process.env.DATABASE_URL);
+```
+
+---
+
+## 🌐 Socket.IO Events
+
+### Client → Server
+| Event | Payload | Keterangan |
+|-------|---------|------------|
+| `get_rooms` | — | Minta daftar room |
+| `join_room` | `{ roomId }` | Masuk room & ambil pesan |
+| `send_message` | `{ roomId, text }` | Kirim pesan |
+| `typing` | `{ roomId }` | Mulai mengetik |
+| `stop_typing` | `{ roomId }` | Berhenti mengetik |
+
+### Server → Client
+| Event | Payload | Keterangan |
+|-------|---------|------------|
+| `rooms` | `Room[]` | Daftar room |
+| `room_messages` | `{ roomId, messages[] }` | Riwayat pesan |
+| `new_message` | `Message` | Pesan masuk |
+| `typing` | `{ roomId, name }` | Indikator mengetik |
+| `stop_typing` | `{ roomId }` | Stop mengetik |
+| `user_status` | `{ userId, status }` | Status user berubah |
+| `message_deleted` | `{ msgId }` | Pesan dihapus admin |
+| `system_broadcast` | `{ message, from }` | Broadcast admin |
+| `banned` | `{ reason }` | User diblokir |
+| `admin_alert` | `{ type, ... }` | Alert ke admin |
+
+---
+
+## 🔌 Swap ke MongoDB (opsional)
 
 ```bash
-# Build frontend
-cd apps/frontend && npm run build
-
-# Use PM2 for Node.js processes
-pm2 start apps/backend/src/index.js --name cf-api
-pm2 start apps/worker/src/index.js --name cf-worker
-
-# Or full Docker deployment
-docker-compose -f docker-compose.prod.yml up -d
+npm install mongoose
 ```
-
-## 📝 Lisensi
-
-MIT © 2025 CommunityFinance
+```env
+DB_TYPE=mongodb
+MONGODB_URI=mongodb://localhost:27017/chatapp
+```
+Implementasikan `UserRepo`, `RoomRepo`, dst. sebagai Mongoose models dengan interface yang sama.
